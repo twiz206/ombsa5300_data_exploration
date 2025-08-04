@@ -21,9 +21,8 @@ trends_raw <- import_list(trends_files, rbind = TRUE)
 trends_processed <- trends_raw %>%
   # Create a proper date variable. The date is the start of the week.
   mutate(date = ymd(str_sub(monthorweek, 1, 10))) %>%
-  # The Google Trends index is not comparable across keywords. We standardize it
-  # by creating a z-score (subtract mean, divide by standard deviation).
+  # Standardize index by creating a z-score (subtract mean, divide by standard deviation).
   group_by(schname, keyword) %>%
   mutate(index_std = (index - mean(index, na.rm = TRUE)) / sd(index, na.rm = TRUE)) %>%
-  ungroup() %>%
+  ungroup()
  
