@@ -10,7 +10,7 @@ library(fixest)
 library(modelsummary)
 
 # Load cleaned data
-analysis_df <- import("cleaned_data.rds")
+analysis_df <- import("data/cleaned_data.rds")
 
 # Make plot data for visualization
 plot_data <- analysis_df %>%

@@ -1,0 +1,118 @@
+---
+title: "Data Exploration -  The College Scoreboard"
+author: "Thuan Nguyen"
+format: docx
+editor: visual
+---
+
+## Did the College Scoreboard Make Students More Interested in High-Earning Colleges
+
+## Introduction
+
+In September 2015, the U.S. government released the College Scorecard, which for the first time made it really easy for students and families to find out how much money graduates from different colleges actually make after they graduate.
+
+For this week's assignment, we were asked to answer the following question: Did the release of the College Scorecard make students more interested in colleges where graduates earn more money? I'm using Google search data to measure student interest, since when people are thinking about colleges, they Google them.
+
+## My Analysis Plan
+
+I'm using a difference-in-differences approach to answer this question. I'm comparing Google searches for high-earning colleges versus low-earning colleges before and after the Scorecard came out in September 2015.
+
+Here's how I set things up:
+
+-   **High-earning colleges**: Schools where graduates earn more than the median (top 50%)
+
+-   **Low-earning colleges**: Schools where graduates earn less than the median (bottom 50%)
+
+-   **Before period**: January 2013 - August 2015
+
+-   **After period**: September 2015 - December 2016
+
+I chose to split colleges at the median because it gives me a clean comparison between "high" and "low" earning schools, and it splits my sample roughly in half.
+
+```{r}
+#| label: Importing Cleaned data
+#| include: false
+# Loading Libraries
+library(tidyverse)
+library(rio)
+library(lubridate)
+library(fixest)
+library(modelsummary)
+
+list.files("data")
+
+# Load the cleaned data (already processed)
+analysis_df <- import("cleaned_data.rds")
+```
+
+## What the Data Shows
+
+Let me start by showing you what happened to student interest over time:
+
+```{r}
+#| label: Student Interest in Colleges Before and After Scoreboard Release Plot
+#| echo: false
+# Make plot data for visualization
+plot_data <- analysis_df %>%
+  group_by(High_Earning, month_date) %>%
+  summarise(avg_index = mean(index_std_agg, na.rm = TRUE), .groups = 'drop') %>%
+  mutate(Group = ifelse(High_Earning == 1, "High-Earning", "Low-Earning"))
+
+# Create the diff-in-diff plot
+did_plot <- ggplot(plot_data, aes(x = month_date, y = avg_index, color = Group, linetype = Group)) +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = ymd("2015-09-01"), linetype = "dashed", color = "black") +
+  annotate("text", x = ymd("2015-09-01") + days(10), y = 0.25,
+           label = "Scorecard Release\n(Sept 2015)", hjust = 0, color = "black") +
+  labs(
+    title = "Student Interest in Colleges Before and After Scorecard Release",
+    subtitle = "Monthly Avg of Google Search Index",
+    x = "Date",
+    y = "Avg Search Index",
+    color = "College Category",
+    linetype = "College Category"
+  ) +
+  theme_minimal(base_size = 14) +
+  scale_color_manual(values = c("High-Earning" = "#0072B2", "Low-Earning" = "#D55E00"))
+
+print(did_plot)
+```
+
+Before the Scorecard came out, high-earning and low-earning colleges had pretty similar patterns in Google searches - they both went up and down at the same times (which is good for my analysis because it means the "parallel trends" assumption holds). But after September 2015, you can see that the gap between them changes a bit.
+
+## **Regression Results**
+
+I ran a difference-in-differences regression to test whether the Scorecard changed how much people searched for high-earning vs low-earning colleges:
+
+```{r}
+#| label: regression-analysis
+#| echo: false
+
+# Run the diff-in-diff regression
+did_model <- feols(index_std_agg ~ Post * High_Earning | month,
+                   data = analysis_df,
+                   cluster = ~unitid)
+
+# Display results
+summary(did_model)
+```
+
+The coefficient I care about most is Post \* High_Earning. This tells me how the Scorecard affected searches for high-earning colleges compared to low-earning colleges.
+
+The introduction of the College Scoreboard decreased search activity on Google Trends for colleges with high-earning graduates by -0.0609 standard deviation relative to what it did for colleges with low-earning graduates, with a standard error of 0.0238. This result comes from 'Post x High-Earning' interaction coefficient in our regression. This effect is statistically significant at the 5% level.
+
+## Conclusion
+
+At first, this seems backwards - shouldn't people be MORE interested in high-earning colleges once they know which ones they are? There are some reasons why this might happen:
+
+1.  Maybe some colleges that people thought were good, actually don't have great earnings outcomes. When the Scorecard revealed this, people stopped searching for them as much.
+
+2.  Instead of just Googling random college names, students might have started searching more specifically for things like "colleges with high starting salaries" or using the Scorecard website directly.
+
+3.  Before the Scorecard, people might have searched for prestigious-sounding schools. After the Scorecard, they became more strategic and focused their searches on schools they actually wanted to attend.
+
+## Limitations
+
+-   I had to drop some colleges from my analysis (ones with duplicate names or missing earnings data)
+
+-   This only looks at a few years around when the Scorecard came out, so I don't know about long-term effects

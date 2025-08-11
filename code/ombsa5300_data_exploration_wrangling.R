@@ -58,4 +58,4 @@ analysis_df <- final_data %>%
   filter(!is.na(index_std_agg))
 
 # Export cleaned data
-export(analysis_df, "cleaned_data.rds")
+export(analysis_df, "data/cleaned_data.rds")
